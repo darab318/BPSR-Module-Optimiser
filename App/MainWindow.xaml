@@ -25,6 +25,9 @@
       <DockPanel Grid.Row="1" Margin="0,12,0,12">
         <Button Content="Open…" Style="{StaticResource AccentPill}" ToolTip="Open ModulesSaveData.json"
                 Click="OpenButton_Click" />
+        <TextBlock Margin="12,0,0,0" VerticalAlignment="Center" FontSize="12"
+                   Foreground="{StaticResource SubtleTextBrush}"
+                   Text="Load ModulesSaveData.json from your ZDPS Data folder" />
         <Border x:Name="ProgressTrack" DockPanel.Dock="Right" Width="220" Height="8" CornerRadius="4"
                 Margin="14,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Left"
                 Background="#33FFFFFF" Visibility="Collapsed">
@@ -32,8 +35,7 @@
                   Background="{StaticResource AccentBrush}" />
         </Border>
         <TextBlock x:Name="StatusText" Margin="14,0,0,0" VerticalAlignment="Center"
-                   Foreground="{StaticResource SubtleTextBrush}"
-                   Text="Open your ModulesSaveData.json to begin." />
+                   Foreground="{StaticResource SubtleTextBrush}" TextTrimming="CharacterEllipsis" />
       </DockPanel>
 
       <!-- Main area -->
