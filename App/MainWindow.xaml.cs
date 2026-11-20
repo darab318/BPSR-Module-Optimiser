@@ -18,13 +18,14 @@ public sealed class AppSettings
     public string LastModulesFile { get; set; } = "";
     public List<WeightProfile> Profiles { get; set; } = new();
     public bool IcicleAdded { get; set; }
+    public int IcicleVersion { get; set; }
 }
 
 // A saved set of custom weights (stat ID -> 1-100).
 public sealed class WeightProfile
 {
     public string Name { get; set; } = "";
-    public Dictionary<int, int> Weights { get; set; } = new();
+    public Dictionary<int, double> Weights { get; set; } = new();
 }
 
 public partial class MainWindow : Window
@@ -74,34 +75,46 @@ public partial class MainWindow : Window
 
         _settings.Profiles ??= new List<WeightProfile>();
 
-        // Built-in Icicle profile, added once (if it's deleted it stays deleted until settings are reset).
-        if (!_settings.IcicleAdded)
+        // Built-in Icicle profile. Added (or updated) once per version of its numbers;
+        // if it's deleted after that it stays deleted.
+        if (_settings.IcicleVersion < IcicleVersion)
         {
-            if (!_settings.Profiles.Any(p => string.Equals(p.Name, "Icicle", StringComparison.OrdinalIgnoreCase)))
+            var icicle = IcicleProfile();
+            var existing = _settings.Profiles.FirstOrDefault(p => string.Equals(p.Name, "Icicle", StringComparison.OrdinalIgnoreCase));
+            if (existing != null)
             {
-                _settings.Profiles.Add(IcicleProfile());
+                existing.Weights = icicle.Weights;
+            }
+            else
+            {
+                _settings.Profiles.Add(icicle);
             }
             _settings.IcicleAdded = true;
+            _settings.IcicleVersion = IcicleVersion;
             SaveSettings();
         }
     }
 
-    // From the "Module values" gain table, scaled so Wave (10.56%) = 100.
-    // Ranges use their midpoint. Anything not listed is 1.
+    private const int IcicleVersion = 2;
+
+    // The "Module values" gain table, as the % numbers themselves.
+    // Ranges use their midpoint. Stats the table doesn't list are 0.1.
     private static WeightProfile IcicleProfile() => new()
     {
         Name = "Icicle",
-        Weights = new Dictionary<int, int>
+        Weights = new Dictionary<int, double>
         {
-            [2404] = 100, // Life Wave       10.56%
-            [2105] = 81,  // Agile           8.59%  (only if active the whole fight)
-            [2104] = 73,  // DMG Stack       7.74%
-            [1409] = 47,  // Crit Focus      4.79-5.04%
-            [1408] = 43,  // Attack SPD      2.5-6.5%
-            [1113] = 43,  // Special Attack  4.07-4.93%
-            [1114] = 42,  // Elite Strike    4.48%
-            [1112] = 39,  // Intellect Boost 4.14%
-            [1410] = 10,  // Luck Focus      1.03%
+            [2404] = 10.56, // Life Wave
+            [2105] = 8.59,  // Agile (only if active the whole fight)
+            [2104] = 7.74,  // DMG Stack
+            [1409] = 4.92,  // Crit Focus      4.79-5.04
+            [1408] = 4.5,   // Attack SPD      2.5-6.5
+            [1113] = 4.5,   // Special Attack  4.07-4.93
+            [1114] = 4.48,  // Elite Strike
+            [1112] = 4.14,  // Intellect Boost
+            [1410] = 1.03,  // Luck Focus
+            [1110] = 0.1, [1111] = 0.1, [1205] = 0.1, [1206] = 0.1, [1307] = 0.1, [1308] = 0.1,
+            [1407] = 0.1, [2204] = 0.1, [2205] = 0.1, [2304] = 0.1, [2405] = 0.1, [2406] = 0.1,
         },
     };
 
@@ -140,10 +153,6 @@ public partial class MainWindow : Window
         ProfileBox.ItemsSource = null;
         ProfileBox.ItemsSource = _settings.Profiles.OrderBy(p => p.Name, StringComparer.OrdinalIgnoreCase).ToList();
         ProfileBox.SelectedItem = select;
-        if (select != null)
-        {
-            ProfileName.Text = select.Name;
-        }
         _applyingProfile = false;
     }
 
@@ -154,7 +163,6 @@ public partial class MainWindow : Window
             return;
         }
 
-        ProfileName.Text = profile.Name;
         ApplyProfile(profile);
     }
 
@@ -170,7 +178,7 @@ public partial class MainWindow : Window
         _applyingProfile = true;
         foreach (var row in _rows)
         {
-            row.Weight = profile.Weights.TryGetValue(row.StatId, out var w) ? w : 1;
+            row.Weight = profile.Weights.TryGetValue(row.StatId, out var w) ? w : 0.1;
         }
         _applyingProfile = false;
 
@@ -178,15 +186,53 @@ public partial class MainWindow : Window
         StatusText.Text = $"Loaded profile \"{profile.Name}\".";
     }
 
+    // Save icon: overwrite the selected profile. With none selected, ask for a name instead.
     private void SaveProfile_Click(object sender, RoutedEventArgs e)
     {
-        var name = ProfileName.Text.Trim();
-        if (name.Length == 0)
+        if (ProfileBox.SelectedItem is WeightProfile selected)
         {
-            StatusText.Text = "Type a name for the profile first.";
-            return;
+            SaveProfileAs(selected.Name);
         }
+        else
+        {
+            NewProfile_Click(sender, e);
+        }
+    }
 
+    private void NewProfile_Click(object sender, RoutedEventArgs e)
+    {
+        ProfileName.Text = "";
+        ProfileName.Visibility = Visibility.Visible;
+        ProfileName.Focus();
+    }
+
+    private void ProfileName_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Enter)
+        {
+            var name = ProfileName.Text.Trim();
+            if (name.Length > 0)
+            {
+                ProfileName.Visibility = Visibility.Collapsed;
+                SaveProfileAs(name);
+            }
+            e.Handled = true;
+        }
+        else if (e.Key == Key.Escape)
+        {
+            ProfileName.Visibility = Visibility.Collapsed;
+            e.Handled = true;
+        }
+    }
+
+    private void ProfileName_LostKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
+    {
+        ProfileName.Visibility = Visibility.Collapsed;
+    }
+
+    // Saves the current sliders under this name, overwriting a profile with the same name.
+    private void SaveProfileAs(string name)
+    {
         if (_rows.Count == 0)
         {
             StatusText.Text = "Open a modules file first.";
@@ -224,7 +270,6 @@ public partial class MainWindow : Window
         _settings.Profiles.Remove(profile);
         SaveSettings();
         RefreshProfileBox(null);
-        ProfileName.Text = "";
         StatusText.Text = $"Deleted profile \"{profile.Name}\".";
     }
 
@@ -352,7 +397,7 @@ public partial class MainWindow : Window
     private void StatList_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         _dragItem = null;
-        if (e.OriginalSource is TextBox || IsInsideSlider(e.OriginalSource))
+        if (IsInsideInput(e.OriginalSource))
         {
             return;
         }
@@ -460,10 +505,10 @@ public partial class MainWindow : Window
             // The list is sorted by weight, so give the dragged stat a weight that fits its new spot.
             var above = to > 0 ? _rows[to - 1] : null;
             var below = to < _rows.Count - 1 ? _rows[to + 1] : null;
-            int weight = dragged.Weight;
+            double weight = dragged.Weight;
             if (above != null && below != null)
             {
-                weight = (above.Weight + below.Weight + 1) / 2;
+                weight = (above.Weight + below.Weight) / 2;
             }
             else if (above == null && below != null)
             {
@@ -471,7 +516,7 @@ public partial class MainWindow : Window
             }
             else if (below == null && above != null)
             {
-                weight = Math.Min(dragged.Weight, above.Weight - 1);
+                weight = Math.Min(dragged.Weight, above.Weight / 2);
             }
 
             _applyingProfile = true;   // already in place; don't re-sort
@@ -480,13 +525,24 @@ public partial class MainWindow : Window
         }
     }
 
-    // True when the click landed on a weight slider, so moving it doesn't start a row drag.
-    private static bool IsInsideSlider(object source)
+    // Enter in a weight box applies the typed number straight away.
+    private void WeightBox_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Enter && sender is TextBox box)
+        {
+            box.GetBindingExpression(TextBox.TextProperty)?.UpdateSource();
+            Keyboard.ClearFocus();
+            e.Handled = true;
+        }
+    }
+
+    // True when the click landed on a slider or text box, so using it doesn't start a row drag.
+    private static bool IsInsideInput(object source)
     {
         var element = source as DependencyObject;
         while (element != null && element is not ListBoxItem)
         {
-            if (element is Slider)
+            if (element is Slider || element is TextBox)
             {
                 return true;
             }
@@ -538,12 +594,12 @@ public partial class MainWindow : Window
         }
 
         var minimums = new Dictionary<int, int>();
-        var weights = new Dictionary<int, int>();
+        var weights = new Dictionary<int, double>();
         for (int i = 0; i < _rows.Count; i++)
         {
             var row = _rows[i];
             // Each stat's weight is its slider value.
-            weights[row.StatId] = Math.Clamp(row.Weight, 1, 100);
+            weights[row.StatId] = row.Weight;
 
             var text = row.MinimumText.Trim();
             if (text.Length == 0)
@@ -589,6 +645,7 @@ public partial class MainWindow : Window
 
                 _results = task.Result;
                 ResultsList.Items.Clear();
+                SaveResultsButton.Visibility = _results.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
 
                 if (_results.Count == 0)
                 {
@@ -640,7 +697,7 @@ public partial class MainWindow : Window
         var header = new DockPanel { Margin = new Thickness(0, 0, 0, 8) };
         var score = new TextBlock
         {
-            Text = $"{result.Points:N0} pts",
+            Text = $"{result.Points:0.#} pts",
             FontSize = 12,
             Foreground = Res("SubtleTextBrush"),
             VerticalAlignment = VerticalAlignment.Center,
@@ -834,7 +891,7 @@ public partial class MainWindow : Window
 // One row in the stat list.
 public sealed class StatRow : INotifyPropertyChanged
 {
-    private int _weight = 1;
+    private double _weight = 1;
 
     public event PropertyChangedEventHandler PropertyChanged;
 
@@ -843,13 +900,13 @@ public sealed class StatRow : INotifyPropertyChanged
     public ImageSource Icon { get; set; }
     public string MinimumText { get; set; } = "";
 
-    // Custom weight, 1-100. Only used when "Custom weights" is on.
-    public int Weight
+    // Weight, 0-100, up to 2 decimals.
+    public double Weight
     {
         get => _weight;
         set
         {
-            int clamped = Math.Clamp(value, 1, 100);
+            double clamped = Math.Round(Math.Clamp(double.IsNaN(value) ? 0 : value, 0, 100), 2);
             if (clamped == _weight)
             {
                 return;

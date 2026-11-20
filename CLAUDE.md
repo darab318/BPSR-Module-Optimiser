@@ -51,12 +51,14 @@ order, and finds the best 5-module loadouts.
 - A loadout is exactly 5 modules.
 - Each stat's total across the 5 modules is capped at 20; nothing above 20 counts.
 - Tier points: 20 = 11, 16 = 6, 12 = 3, 8 = 1, below 8 = 0. (Two 16s beating one 20 is intended.)
-- Each stat has a weight slider (1-100), always shown. The list stays sorted by weight;
-  dragging a row sets its weight between its new neighbours. With no profile, weights
-  start from list order (top = N ... bottom = 1). The old Equal/Custom weight toggles were removed.
-- Weight profiles are saved in settings.json. Built-in "Icicle" profile (from the user's
-  "Module values" gain table, Wave 10.56% = 100): Life Wave 100, Agile 81, DMG Stack 73,
-  Crit Focus 47, Attack SPD 43, Special Attack 43, Elite Strike 42, Intellect 39, Luck Focus 10, rest 1.
+- Each stat has a weight (0-100, decimals allowed): a slider plus a typed number box, always shown.
+  The list stays sorted by weight; dragging a row sets its weight between its new neighbours.
+  With no profile, weights start from list order (top = N ... bottom = 1).
+- Weight profiles are saved in settings.json. Built-in "Icicle" profile uses the user's
+  "Module values" gain % directly (ranges at midpoint): Life Wave 10.56, Agile 8.59, DMG Stack 7.74,
+  Crit Focus 4.92, Attack SPD 4.5, Special Attack 4.5, Elite Strike 4.48, Intellect 4.14,
+  Luck Focus 1.03, every other stat 0.1. `IcicleVersion` in MainWindow.xaml.cs: bump it to push
+  new Icicle numbers over the saved copy.
 - Score = sum over stats of weight x tier points.
 - Typed minimums are hard constraints. Fill the remaining capacity with the best
   overall build, not just the minimums.

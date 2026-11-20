@@ -23,7 +23,8 @@
 
       <!-- Toolbar -->
       <DockPanel Grid.Row="1" Margin="0,12,0,12">
-        <Button Content="Open modules file" Style="{StaticResource AccentPill}" Click="OpenButton_Click" />
+        <Button Content="Open…" Style="{StaticResource AccentPill}" ToolTip="Open ModulesSaveData.json"
+                Click="OpenButton_Click" />
         <Border x:Name="ProgressTrack" DockPanel.Dock="Right" Width="220" Height="8" CornerRadius="4"
                 Margin="14,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Left"
                 Background="#33FFFFFF" Visibility="Collapsed">
@@ -46,30 +47,27 @@
         <!-- Stat minimums -->
         <Border Style="{StaticResource Card}" Background="#D9101216" CornerRadius="10" Padding="14">
           <DockPanel>
-            <TextBlock DockPanel.Dock="Top" Text="Minimum totals" Style="{StaticResource SectionTitle}" />
-            <!-- Weight profiles: pick one to load it; type a name and Save to store the current sliders -->
-            <Grid DockPanel.Dock="Top" Margin="0,0,0,6">
+            <!-- Profiles: pick to load. Icons: save over the selected one, new, delete. -->
+            <Grid DockPanel.Dock="Top" Margin="0,0,0,8">
               <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
               </Grid.ColumnDefinitions>
               <ComboBox x:Name="ProfileBox" DisplayMemberPath="Name" SelectionChanged="ProfileBox_SelectionChanged" />
-              <Button Grid.Column="1" Margin="6,0,0,0" Content="Delete" Style="{StaticResource PillButton}"
-                      Click="DeleteProfile_Click" />
+              <Button Grid.Column="1" Margin="6,0,0,0" Style="{StaticResource IconButton}" Height="32"
+                      Content="&#xE74E;" FontSize="14" ToolTip="Save" Click="SaveProfile_Click" />
+              <Button Grid.Column="2" Style="{StaticResource IconButton}" Height="32"
+                      Content="&#xE710;" FontSize="14" ToolTip="New profile" Click="NewProfile_Click" />
+              <Button Grid.Column="3" Style="{StaticResource IconButton}" Height="32"
+                      Content="&#xE74D;" FontSize="14" ToolTip="Delete" Click="DeleteProfile_Click" />
             </Grid>
-            <Grid DockPanel.Dock="Top" Margin="0,0,0,10">
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-              </Grid.ColumnDefinitions>
-              <TextBox x:Name="ProfileName" Style="{StaticResource GlassInput}" VerticalContentAlignment="Center"
-                       ToolTip="Profile name. Use an existing name to overwrite it." />
-              <Button Grid.Column="1" Margin="6,0,0,0" Content="Save profile" Style="{StaticResource PillButton}"
-                      Click="SaveProfile_Click" />
-            </Grid>
-            <TextBlock DockPanel.Dock="Top" TextWrapping="Wrap" Margin="0,0,0,8"
-                       Style="{StaticResource FieldLabel}"
-                       Text="Each slider sets that stat's weight (1-100); the list keeps itself sorted by weight. Dragging a row gives it a weight between its new neighbours. Type a minimum to require it." />
+            <!-- Appears when "New profile" is pressed. Enter saves, Esc cancels. -->
+            <TextBox x:Name="ProfileName" DockPanel.Dock="Top" Margin="0,0,0,8" Height="32" Padding="10,0"
+                     Style="{StaticResource GlassInput}" VerticalContentAlignment="Center"
+                     Tag="Name, then Enter" Visibility="Collapsed"
+                     KeyDown="ProfileName_KeyDown" LostKeyboardFocus="ProfileName_LostKeyboardFocus" />
             <Button x:Name="FindButton" DockPanel.Dock="Bottom" Margin="0,10,0,0"
                     Content="Find loadouts" Style="{StaticResource AccentPill}"
                     HorizontalAlignment="Stretch" Click="FindButton_Click" />
@@ -103,17 +101,20 @@
                     <TextBlock DockPanel.Dock="Left" Text="&#xE700;" FontFamily="{StaticResource IconFont}"
                                FontSize="14" Foreground="{StaticResource SubtleTextBrush}"
                                Margin="0,0,10,0" VerticalAlignment="Center" Cursor="SizeAll" />
-                    <TextBox DockPanel.Dock="Right" Width="52" Height="28" VerticalAlignment="Center" Margin="8,0,0,0"
-                             ToolTip="Minimum total (optional)" Style="{StaticResource GlassInput}"
+                    <TextBox DockPanel.Dock="Right" Width="58" Height="32" VerticalAlignment="Center" Margin="8,0,0,0"
+                             Padding="8,0" FontSize="14" MaxLength="2" Tag="min"
+                             ToolTip="Minimum total" Style="{StaticResource GlassInput}"
                              VerticalContentAlignment="Center" Text="{Binding MinimumText, UpdateSourceTrigger=PropertyChanged}" />
                     <Image DockPanel.Dock="Left" Width="22" Height="22" Margin="0,0,8,0" Source="{Binding Icon}" />
-                    <!-- Weight slider: only shown when "Custom weights" is on -->
+                    <!-- Weight: drag the slider or type a number (0-100, decimals allowed) -->
                     <DockPanel DockPanel.Dock="Bottom" Margin="0,4,0,0">
-                      <TextBlock DockPanel.Dock="Right" Width="30" Margin="8,0,0,0" TextAlignment="Right"
-                                 VerticalAlignment="Center" FontSize="12" FontWeight="SemiBold"
-                                 Foreground="{StaticResource AccentBrush}" Text="{Binding Weight}" />
-                      <Slider Style="{StaticResource GlassSlider}" Minimum="1" Maximum="100"
-                              SmallChange="1" LargeChange="5" IsSnapToTickEnabled="True" TickFrequency="1"
+                      <TextBox DockPanel.Dock="Right" Width="58" Height="26" Margin="8,0,0,0" Padding="6,0"
+                               FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}"
+                               Style="{StaticResource GlassInput}" VerticalContentAlignment="Center"
+                               TextAlignment="Right" ToolTip="Weight" KeyDown="WeightBox_KeyDown"
+                               Text="{Binding Weight, StringFormat={}{0:0.##}, UpdateSourceTrigger=LostFocus}" />
+                      <Slider Style="{StaticResource GlassSlider}" Minimum="0" Maximum="100"
+                              SmallChange="0.1" LargeChange="1"
                               Value="{Binding Weight, Mode=TwoWay}" />
                     </DockPanel>
                     <TextBlock Text="{Binding Label}" FontSize="12" VerticalAlignment="Center"
@@ -128,9 +129,10 @@
         <!-- Results -->
         <Border Grid.Column="2" Style="{StaticResource Card}" Background="#D9101216" CornerRadius="10" Padding="14">
           <DockPanel>
-            <Button DockPanel.Dock="Right" Content="Save results" Style="{StaticResource PillButton}"
-                    Click="SaveButton_Click" />
-            <TextBlock DockPanel.Dock="Top" Text="Best loadouts" Style="{StaticResource SectionTitle}" />
+            <!-- Export, shown only once there are results -->
+            <Button x:Name="SaveResultsButton" DockPanel.Dock="Top" HorizontalAlignment="Right" Margin="0,0,0,6"
+                    Style="{StaticResource IconButton}" Height="30" Content="&#xEDE1;" FontSize="14"
+                    ToolTip="Export results" Visibility="Collapsed" Click="SaveButton_Click" />
             <ListBox x:Name="ResultsList" Background="Transparent" BorderThickness="0"
                      Foreground="{StaticResource TextBrush}"
                      ScrollViewer.HorizontalScrollBarVisibility="Disabled">

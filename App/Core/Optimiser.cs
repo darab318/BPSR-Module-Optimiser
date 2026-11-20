@@ -4,8 +4,8 @@ public sealed class LoadoutResult
 {
     public List<Module> Modules { get; set; } = new();
     public Dictionary<int, int> Totals { get; set; } = new();
-    public long Score { get; set; }
-    public int Points { get; set; }
+    public double Score { get; set; }
+    public double Points { get; set; }
 }
 
 // Finds 5-module loadouts that reach the stat minimums. Same approach as ZDPS's
@@ -22,17 +22,17 @@ public static class Optimiser
         public int[] Members = Array.Empty<int>();
         public int[] Totals = Array.Empty<int>();
         public double Progress;
-        public long Score;
+        public double Score;
     }
 
-    private readonly record struct Candidate(int Parent, int Module, double Progress, long Score);
+    private readonly record struct Candidate(int Parent, int Module, double Progress, double Score);
 
     public static int TierPoints(int total) =>
         total >= 20 ? 11 : total >= 16 ? 6 : total >= 12 ? 3 : total >= 8 ? 1 : 0;
 
     // progress (optional) is told a fraction from 0 to 1, plus a short message.
     // weights (optional) gives each stat a multiplier. Stats not listed count as 1.
-    public static List<LoadoutResult> Find(IReadOnlyList<Module> all, IReadOnlyDictionary<int, int> minimums, int top, Action<double, string> progress = null, IReadOnlyDictionary<int, int> weights = null)
+    public static List<LoadoutResult> Find(IReadOnlyList<Module> all, IReadOnlyDictionary<int, int> minimums, int top, Action<double, string> progress = null, IReadOnlyDictionary<int, double> weights = null)
     {
         // Every module can help (minimums are hard limits, but the rest of the build should still be the best),
         // so keep them all, at most MaxPerType of each identical kind.
@@ -83,7 +83,7 @@ public static class Optimiser
             }
         }
 
-        var weight = new int[s];
+        var weight = new double[s];
         for (int i = 0; i < s; i++)
         {
             weight[i] = weights != null && weights.TryGetValue(statIds[i], out var w) ? w : 1;
@@ -105,15 +105,15 @@ public static class Optimiser
         // Points for each stat by its breakpoint: 20 = 11, 16 = 6, 12 = 3, 8 = 1.
         // Two 16s (12 points) beat one 20 (11 points). All stats count equally.
         // Raw totals break ties, so higher values still count when points are equal.
-        long ScoreOf(int[] totals)
+        double ScoreOf(int[] totals)
         {
-            long points = 0;
-            long raw = 0;
+            double points = 0;
+            double raw = 0;
             for (int i = 0; i < s; i++)
             {
                 int v = Math.Min(totals[i], StatCap);
-                points += (long)TierPoints(v) * weight[i];
-                raw += (long)v * weight[i];
+                points += TierPoints(v) * weight[i];
+                raw += v * weight[i];
             }
             return points * 1000 + raw;
         }
@@ -241,7 +241,7 @@ public static class Optimiser
                 }
             }
 
-            int points = 0;
+            double points = 0;
             for (int i = 0; i < s; i++)
             {
                 points += TierPoints(Math.Min(node.Totals[i], StatCap)) * weight[i];
