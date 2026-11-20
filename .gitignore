@@ -1,0 +1,21 @@
+# Build output
+bin/
+obj/
+*.user
+.vs/
+
+# Logs written by Build.bat and the app
+build-log.txt
+error-log.txt
+
+# Personal data: your module inventory and saved results
+ModulesSaveData.json
+loadouts.json
+results.json
+
+# Python
+__pycache__/
+*.pyc
+
+# Stray screenshots
+Screenshot*.png
