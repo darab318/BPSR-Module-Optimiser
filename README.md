@@ -21,8 +21,9 @@ You weight the stats you care about, optionally set hard minimums
 
 - A loadout is exactly 5 modules.
 - Each stat's total across the 5 modules counts up to 20. Anything above 20 is wasted.
-- Totals earn tier points: 20 = 11, 16 = 6, 12 = 3, 8 = 1, below 8 = 0.
-  Two 16s (12 points) beat one 20 (11 points).
+- Breakpoints are 4, 8, 12, 16 and 20. Totals earn tier points: 20 = 11, 16 = 6, 12 = 3, 8 = 1.
+  Two 16s (12 points) beat one 20 (11 points). Links past a breakpoint are wasted, so 17-19 score the same as 16.
+- Reaching 4 is the final tie-breaker: between otherwise equal loadouts, the one that reaches more 4s wins.
 - Score = sum over stats of (weight x tier points).
 
 ## Getting your module data

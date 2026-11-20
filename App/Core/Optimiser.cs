@@ -16,6 +16,7 @@ public static class Optimiser
     public const int MaxPerType = 5;   // identical modules kept (same as ZDPS)
     public const int BeamWidth = 4000; // candidates kept per step
     public const int StatCap = 20;     // no benefit above 20, so totals are capped here
+    private const double FourTieBreak = 1e-6; // reaching 4 only breaks ties (see FinalScore)
 
     private sealed class BeamNode
     {
@@ -102,20 +103,37 @@ public static class Optimiser
             }
         }
 
-        // Points for each stat by its breakpoint: 20 = 11, 16 = 6, 12 = 3, 8 = 1.
-        // Two 16s (12 points) beat one 20 (11 points). All stats count equally.
-        // Raw totals break ties, so higher values still count when points are equal.
-        double ScoreOf(int[] totals)
+        // The real score of a finished loadout. Breakpoints: 20 = 11, 16 = 6, 12 = 3, 8 = 1, each times
+        // the stat's weight. Links past a breakpoint count for nothing (17-19 = 16).
+        // Reaching 4 is the last tie-breaker: it only separates loadouts whose breakpoint score is equal.
+        // (Weights have at most 2 decimals, so breakpoint scores differ by at least 0.01; the 4s part
+        // is at most 21 x 100 x 1e-6 = 0.0021 and can never outweigh that.)
+        double FinalScore(int[] totals)
         {
             double points = 0;
-            double raw = 0;
+            double fours = 0;
             for (int i = 0; i < s; i++)
             {
                 int v = Math.Min(totals[i], StatCap);
                 points += TierPoints(v) * weight[i];
-                raw += v * weight[i];
+                if (v >= 4 && v < 8)
+                {
+                    fours += weight[i];
+                }
             }
-            return points * 1000 + raw;
+            return points + fours * FourTieBreak;
+        }
+
+        // Used only while a loadout is half built, to choose which partial builds to keep. Early on almost
+        // nothing has reached 8, so link totals steer towards the breakpoints. Never used for the final ranking.
+        double GuideScore(int[] totals)
+        {
+            double raw = 0;
+            for (int i = 0; i < s; i++)
+            {
+                raw += Math.Min(totals[i], StatCap) * weight[i];
+            }
+            return FinalScore(totals) * 1000 + raw;
         }
 
         double ProgressOf(int[] totals)
@@ -177,7 +195,9 @@ public static class Optimiser
                         scratch[i] = node.Totals[i] + v[i];
                     }
 
-                    candidates.Add(new Candidate(p, j, ProgressOf(scratch), ScoreOf(scratch)));
+                    // The last module completes the loadout, so rank those by the real score.
+                    double score = step == depth - 1 ? FinalScore(scratch) : GuideScore(scratch);
+                    candidates.Add(new Candidate(p, j, ProgressOf(scratch), score));
                 }
             }
 

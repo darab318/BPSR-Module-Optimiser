@@ -50,7 +50,12 @@ order, and finds the best 5-module loadouts.
 
 - A loadout is exactly 5 modules.
 - Each stat's total across the 5 modules is capped at 20; nothing above 20 counts.
-- Tier points: 20 = 11, 16 = 6, 12 = 3, 8 = 1, below 8 = 0. (Two 16s beating one 20 is intended.)
+- Breakpoints are 4, 8, 12, 16, 20. Tier points: 20 = 11, 16 = 6, 12 = 3, 8 = 1, below 8 = 0.
+  (Two 16s beating one 20 is intended.) Links past a breakpoint count for nothing (17-19 = 16).
+- Reaching 4 is worth very little: it is only the final tie-breaker between loadouts whose
+  breakpoint score is equal (weighted, x 1e-6 in `FinalScore`). It never outweighs 8+.
+- During the beam search, partial builds are ranked by `GuideScore` (adds raw link totals so early
+  steps head towards breakpoints); finished loadouts are ranked by `FinalScore` only.
 - Each stat has a weight (0-100, decimals allowed): a slider plus a typed number box, always shown.
   The list stays sorted by weight; dragging a row sets its weight between its new neighbours.
   With no profile, weights start from list order (top = N ... bottom = 1).
